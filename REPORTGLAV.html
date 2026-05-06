@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinFlow | Учёт закупок и продаж</title>
+    <style>
+        /* ========== ДИЗАЙН ========== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: system-ui, 'Segoe UI', sans-serif;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        
+        /* Хедер */
+        .header { text-align: center; margin-bottom: 40px; }
+        .header h1 {
+            font-size: 3rem;
+            background: linear-gradient(135deg, #fff, #e0d4ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .header p { color: rgba(255,255,255,0.8); }
+        
+        /* Главные кнопки */
+        .main-buttons { display: flex; gap: 24px; justify-content: center; margin-bottom: 48px; flex-wrap: wrap; }
+        .main-btn {
+            padding: 18px 48px;
+            font-size: 1.25rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 60px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        }
+        .main-btn:hover { transform: translateY(-3px); }
+        .btn-purchase { background: linear-gradient(135deg, #ff9a56, #ff6b35); color: white; }
+        .btn-sale { background: linear-gradient(135deg, #4facfe, #3401ec); color: white; }
+        
+        /* Панель инструментов */
+        .toolbar {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(20px);
+            border-radius: 60px;
+            padding: 12px 24px;
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 32px;
+        }
+        .toolbar button {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 40px;
+            font-weight: bold;
+            cursor: pointer;
+            background: rgba(97, 80, 255, 0.9);
+        }
+        .btn-green { background: linear-gradient(135deg, #11998e, #38ef7d); color: white; }
+        .btn-blue { background: linear-gradient(135deg, #1e3c72, #2a5298); color: white; }
+        .btn-orange { background: linear-gradient(135deg, #f2994a, #f2c94c); color: white; }
+        .btn-red { background: linear-gradient(135deg, #eb3349, #f45c43); color: white; }
+        
+        /* Область отчёта */
+        .report-box {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 32px;
+            padding: 28px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        /* Модальные окна */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(8px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 48px;
+            max-width: 1000px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            padding: 32px;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 16px;
+        }
+        .close {
+            font-size: 32px;
+            cursor: pointer;
+            color: #999;
+        }
+        .close:hover { color: #333; transform: rotate(90deg); display: inline-block; }
+        
+        /* Таблицы */
+        .editable-table { width: 100%; border-collapse: collapse; }
+        .editable-table th {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 14px;
+        }
+        .editable-table td { padding: 12px; border-bottom: 1px solid #f0f0f0; }
+        .editable-table input, .editable-table select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e9ecef;
+            border-radius: 16px;
+        }
+        .editable-table input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+        }
+        .delete-row-btn {
+            background: linear-gradient(135deg, #f56565, #ed8936);
+            color: white;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 12px;
+            cursor: pointer;
+        }
+        .date-filter {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+            background: #f8f9fa;
+            padding: 16px;
+            border-radius: 28px;
+            margin-bottom: 20px;
+        }
+        .small-note {
+            font-size: 0.8rem;
+            color: #6c757d;
+            background: #f1f3f5;
+            padding: 8px 16px;
+            border-radius: 50px;
+            display: inline-block;
+            margin-bottom: 16px;
+        }
+        @media (max-width: 768px) {
+            .main-btn { padding: 14px 28px; font-size: 1rem; }
+            .modal-content { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>✨ ОТЧЕТЫЧ</h1>
+        <p>Учёт закупок и продаж — стильно, просто, эффективно</p>
+    </div>
+    
+    <div class="main-buttons">
+        <button class="main-btn btn-purchase" id="openPurchaseBtn">📥 Закупки</button>
+        <button class="main-btn btn-sale" id="openSalesBtn">📤 Продажи</button>
+    </div>
+
+    <div class="toolbar">
+        <button id="excelBtn" class="btn-green">📎 Сохранить в Excel</button>
+        <button id="reportBtn" class="btn-blue">📊 Генеральный отчёт</button>
+        <button id="historyBtn" class="btn-orange">📜 История</button>
+        <button id="clearBtn" class="btn-red">🗑 Очистить</button>
+    </div>
+
+    <div id="reportArea" class="report-box">
+        <div style="text-align: center; padding: 40px;">
+            <div style="font-size: 48px;">📋</div>
+            <strong>Добро пожаловать в ОТЧЕТЫЧ</strong><br>
+            <span style="color: #6c757d;">Нажмите «Закупки» или «Продажи» для начала</span>
+        </div>
+    </div>
+</div>
+
+<!-- Модалка закупок -->
+<div id="purchaseModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>📥 Закупки</h2>
+            <span class="close" id="closePurchaseBtn">&times;</span>
+        </div>
+        <div class="small-note">⌨️ Enter → следующая ячейка</div>
+        <div class="date-filter">
+            <label>📅 Дата:</label>
+            <input type="date" id="purchaseDate">
+            <button id="addPurchaseRowBtn" style="background:#11998e;color:white;padding:8px 20px;border:none;border-radius:30px;">+ Добавить</button>
+            <button id="savePurchaseBtn" style="background:#1e3c72;color:white;padding:8px 20px;border:none;border-radius:30px;">💾 Сохранить</button>
+        </div>
+        <table class="editable-table">
+            <thead><tr><th>Товар</th><th>Цена</th><th>Кол-во</th><th>Ед.</th><th></th></tr></thead>
+            <tbody id="purchaseTableBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Модалка продаж -->
+<div id="salesModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>📤 Продажи</h2>
+            <span class="close" id="closeSalesBtn">&times;</span>
+        </div>
+        <div class="small-note">⌨️ Enter → следующая ячейка</div>
+        <div class="date-filter">
+            <label>📅 Дата:</label>
+            <input type="date" id="salesDate">
+            <button id="addSaleRowBtn" style="background:#11998e;color:white;padding:8px 20px;border:none;border-radius:30px;">+ Добавить</button>
+            <button id="saveSaleBtn" style="background:#1e3c72;color:white;padding:8px 20px;border:none;border-radius:30px;">💾 Сохранить</button>
+        </div>
+        <table class="editable-table">
+            <thead><tr><th>Товар</th><th>Цена</th><th>Кол-во</th><th>Ед.</th><th></th></tr></thead>
+            <tbody id="salesTableBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+    // ========== ДАННЫЕ ==========
+    let purchasesHistory = [];  // [{date, items: [{name,price,quantity,unit}]}]
+    let salesHistory = [];      // аналогично
+    let tempPurchases = [];     // временные данные закупок
+    let tempSales = [];         // временные данные продаж
+    let nextPurId = 1, nextSalId = 1;
+
+    // ========== ЗАГРУЗКА/СОХРАНЕНИЕ ==========
+    function loadData() {
+        let p = localStorage.getItem('purchases');
+        let s = localStorage.getItem('sales');
+        if (p) purchasesHistory = JSON.parse(p);
+        if (s) salesHistory = JSON.parse(s);
+    }
+    function saveData() {
+        localStorage.setItem('purchases', JSON.stringify(purchasesHistory));
+        localStorage.setItem('sales', JSON.stringify(salesHistory));
+    }
+
+    // ========== ОТРИСОВКА ТАБЛИЦ В МОДАЛКАХ ==========
+    function renderPurchaseTable() {
+        let tbody = document.getElementById('purchaseTableBody');
+        tbody.innerHTML = '';
+        if (tempPurchases.length === 0) tempPurchases.push({ id: nextPurId++, name: '', price: 0, quantity: 0, unit: 'кг' });
+        
+        tempPurchases.forEach((item, idx) => {
+            let row = tbody.insertRow();
+            row.insertCell(0).innerHTML = `<input type="text" value="${escapeHtml(item.name)}" placeholder="Товар" data-idx="${idx}" data-field="name">`;
+            row.insertCell(1).innerHTML = `<input type="number" value="${item.price}" placeholder="Цена" step="0.01" data-idx="${idx}" data-field="price">`;
+            row.insertCell(2).innerHTML = `<input type="number" value="${item.quantity}" placeholder="Кол-во" step="0.01" data-idx="${idx}" data-field="quantity">`;
+            row.insertCell(3).innerHTML = `<select data-idx="${idx}" data-field="unit">
+                <option ${item.unit === 'кг' ? 'selected' : ''}>кг</option>
+                <option ${item.unit === 'шт' ? 'selected' : ''}>шт</option>
+                <option ${item.unit === 'л' ? 'selected' : ''}>л</option>
+            </select>`;
+            let btn = document.createElement('button');
+            btn.textContent = '✕';
+            btn.className = 'delete-row-btn';
+            btn.onclick = () => { tempPurchases.splice(idx, 1); renderPurchaseTable(); };
+            row.insertCell(4).appendChild(btn);
+        });
+        
+        // Привязка изменения данных
+        document.querySelectorAll('#purchaseTableBody input, #purchaseTableBody select').forEach(el => {
+            el.addEventListener('change', function() {
+                let idx = parseInt(this.dataset.idx);
+                let field = this.dataset.field;
+                if (field === 'price' || field === 'quantity') tempPurchases[idx][field] = parseFloat(this.value) || 0;
+                else tempPurchases[idx][field] = this.value;
+            });
+        });
+        
+        // Enter для перехода по ячейкам
+        setTimeout(() => {
+            let inputs = document.querySelectorAll('#purchaseTableBody input');
+            inputs.forEach((inp, i) => {
+                inp.onkeypress = (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        let next = inputs[i+1];
+                        if (next) next.focus();
+                        else { addPurchaseRow(); setTimeout(() => document.querySelectorAll('#purchaseTableBody input')[i+1]?.focus(), 50); }
+                    }
+                };
+            });
+        }, 50);
+    }
+    
+    function renderSalesTable() {
+        let tbody = document.getElementById('salesTableBody');
+        tbody.innerHTML = '';
+        if (tempSales.length === 0) tempSales.push({ id: nextSalId++, name: '', price: 0, quantity: 0, unit: 'шт' });
+        
+        tempSales.forEach((item, idx) => {
+            let row = tbody.insertRow();
+            row.insertCell(0).innerHTML = `<input type="text" value="${escapeHtml(item.name)}" placeholder="Товар" data-idx="${idx}" data-field="name">`;
+            row.insertCell(1).innerHTML = `<input type="number" value="${item.price}" placeholder="Цена" step="0.01" data-idx="${idx}" data-field="price">`;
+            row.insertCell(2).innerHTML = `<input type="number" value="${item.quantity}" placeholder="Кол-во" step="0.01" data-idx="${idx}" data-field="quantity">`;
+            row.insertCell(3).innerHTML = `<select data-idx="${idx}" data-field="unit">
+                <option ${item.unit === 'кг' ? 'selected' : ''}>кг</option>
+                <option ${item.unit === 'шт' ? 'selected' : ''}>шт</option>
+                <option ${item.unit === 'порц' ? 'selected' : ''}>порц</option>
+            </select>`;
+            let btn = document.createElement('button');
+            btn.textContent = '✕';
+            btn.className = 'delete-row-btn';
+            btn.onclick = () => { tempSales.splice(idx, 1); renderSalesTable(); };
+            row.insertCell(4).appendChild(btn);
+        });
+        
+        document.querySelectorAll('#salesTableBody input, #salesTableBody select').forEach(el => {
+            el.addEventListener('change', function() {
+                let idx = parseInt(this.dataset.idx);
+                let field = this.dataset.field;
+                if (field === 'price' || field === 'quantity') tempSales[idx][field] = parseFloat(this.value) || 0;
+                else tempSales[idx][field] = this.value;
+            });
+        });
+        
+        setTimeout(() => {
+            let inputs = document.querySelectorAll('#salesTableBody input');
+            inputs.forEach((inp, i) => {
+                inp.onkeypress = (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        let next = inputs[i+1];
+                        if (next) next.focus();
+                        else { addSaleRow(); setTimeout(() => document.querySelectorAll('#salesTableBody input')[i+1]?.focus(), 50); }
+                    }
+                };
+            });
+        }, 50);
+    }
+    
+    function addPurchaseRow() { tempPurchases.push({ id: nextPurId++, name: '', price: 0, quantity: 0, unit: 'кг' }); renderPurchaseTable(); }
+    function addSaleRow() { tempSales.push({ id: nextSalId++, name: '', price: 0, quantity: 0, unit: 'шт' }); renderSalesTable(); }
+    
+    // ========== СОХРАНЕНИЕ В ИСТОРИЮ ==========
+    function savePurchases() {
+        let date = document.getElementById('purchaseDate').value;
+        if (!date) { alert('Выберите дату'); return; }
+        let valid = tempPurchases.filter(i => i.name.trim() && i.price > 0 && i.quantity > 0);
+        if (!valid.length) { alert('Добавьте товары'); return; }
+        purchasesHistory.push({ date, items: valid.map(i => ({...i})) });
+        saveData();
+        alert(`✅ Сохранено ${valid.length} товаров`);
+        closePurchaseModal();
+    }
+    
+    function saveSales() {
+        let date = document.getElementById('salesDate').value;
+        if (!date) { alert('Выберите дату'); return; }
+        let valid = tempSales.filter(i => i.name.trim() && i.price > 0 && i.quantity > 0);
+        if (!valid.length) { alert('Добавьте товары'); return; }
+        salesHistory.push({ date, items: valid.map(i => ({...i})) });
+        saveData();
+        alert(`✅ Сохранено ${valid.length} товаров`);
+        closeSalesModal();
+    }
+    
+    // ========== ГЕНЕРАЛЬНЫЙ ОТЧЁТ ==========
+    function showReport() {
+        let allDates = [...new Set([...purchasesHistory.map(p=>p.date), ...salesHistory.map(s=>s.date)])].sort();
+        if (!allDates.length) { document.getElementById('reportArea').innerHTML = '<p>Нет данных</p>'; return; }
+        
+        let html = '<h2>📊 ГЕНЕРАЛЬНЫЙ ОТЧЁТ</h2>';
+        html += `<div class="date-filter">
+            <label>Сортировка:</label>
+            <select id="sortOrder" onchange="showReport()"><option value="asc">По возрастанию</option><option value="desc">По убыванию</option></select>
+            <label>Фильтр по дате:</label>
+            <input type="date" id="filterDate" onchange="showReport()">
+            <button onclick="showReport()">Применить</button>
+        </div>`;
+        
+        let dates = [...allDates];
+        let sort = document.getElementById('sortOrder')?.value || 'asc';
+        let filter = document.getElementById('filterDate')?.value;
+        if (sort === 'desc') dates.reverse();
+        if (filter) dates = dates.filter(d => d === filter);
+        
+        let totalPur = 0, totalSal = 0;
+        for (let date of dates) {
+            let pur = purchasesHistory.find(p=>p.date===date);
+            let sal = salesHistory.find(s=>s.date===date);
+            let purCost = 0, salRev = 0;
+            html += `<div style="border:2px solid #667eea;margin:20px 0;padding:15px;border-radius:20px;">`;
+            html += `<h3>📅 ${date}</h3>`;
+            
+            html += `<div style="background:#fff3e0;padding:10px;border-radius:15px;margin:10px 0;"><b>📥 ЗАКУПКИ</b><br>`;
+            if (pur) {
+                pur.items.forEach(i => { let c = i.price*i.quantity; purCost += c; html += `${i.name}: ${i.price}₽ × ${i.quantity}${i.unit} = ${c.toFixed(2)}₽<br>`; });
+                html += `<b>Итого: ${purCost.toFixed(2)}₽</b>`;
+            } else html += 'Нет закупок';
+            html += `</div>`;
+            
+            html += `<div style="background:#e8f5e9;padding:10px;border-radius:15px;margin:10px 0;"><b>📤 ПРОДАЖИ</b><br>`;
+            if (sal) {
+                sal.items.forEach(i => { let r = i.price*i.quantity; salRev += r; html += `${i.name}: ${i.price}₽ × ${i.quantity}${i.unit} = ${r.toFixed(2)}₽<br>`; });
+                html += `<b>Итого: ${salRev.toFixed(2)}₽</b>`;
+            } else html += 'Нет продаж';
+            html += `</div>`;
+            
+            let profit = salRev - purCost;
+            totalPur += purCost; totalSal += salRev;
+            html += `<div style="background:${profit>=0?'#d4edda':'#f8d7da'};padding:10px;border-radius:15px;"><b>💰 Прибыль за день: ${profit.toFixed(2)}₽</b></div>`;
+            html += `</div>`;
+        }
+        html += `<div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:20px;border-radius:25px;color:white;text-align:center;">
+            <h2>🏆 ОБЩАЯ ПРИБЫЛЬ: ${(totalSal-totalPur).toFixed(2)}₽</h2>
+            <p>Расходы: ${totalPur.toFixed(2)}₽ | Выручка: ${totalSal.toFixed(2)}₽</p>
+        </div>`;
+        document.getElementById('reportArea').innerHTML = html;
+    }
+    
+    // ========== ЭКСПОРТ В EXCEL ==========
+    function exportExcel() {
+        let type = prompt('1 - Генеральный\n2 - Все закупки\n3 - Все продажи\n4 - Сводка по дням', '1');
+        let data = [], name = 'Отчёт';
+        if (type === '2') {
+            data = [['Дата','Товар','Цена','Кол-во','Ед','Стоимость']];
+            purchasesHistory.forEach(p => p.items.forEach(i => data.push([p.date, i.name, i.price, i.quantity, i.unit, (i.price*i.quantity).toFixed(2)])));
+            name = 'Закупки';
+        } else if (type === '3') {
+            data = [['Дата','Товар','Цена','Кол-во','Ед','Выручка']];
+            salesHistory.forEach(s => s.items.forEach(i => data.push([s.date, i.name, i.price, i.quantity, i.unit, (i.price*i.quantity).toFixed(2)])));
+            name = 'Продажи';
+        } else if (type === '4') {
+            let dates = [...new Set([...purchasesHistory.map(p=>p.date), ...salesHistory.map(s=>s.date)])].sort();
+            data = [['Дата','Расходы','Выручка','Прибыль']];
+            dates.forEach(d => {
+                let pur = purchasesHistory.find(p=>p.date===d)?.items.reduce((s,i)=>s+i.price*i.quantity,0)||0;
+                let sal = salesHistory.find(s=>s.date===d)?.items.reduce((s,i)=>s+i.price*i.quantity,0)||0;
+                data.push([d, pur.toFixed(2), sal.toFixed(2), (sal-pur).toFixed(2)]);
+            });
+            name = 'Сводка';
+        } else {
+            let dates = [...new Set([...purchasesHistory.map(p=>p.date), ...salesHistory.map(s=>s.date)])].sort();
+            data = [['Дата','Тип','Товар','Цена','Кол-во','Ед','Сумма']];
+            dates.forEach(d => {
+                let pur = purchasesHistory.find(p=>p.date===d);
+                let sal = salesHistory.find(s=>s.date===d);
+                if(pur) pur.items.forEach(i => data.push([d,'Закупка',i.name,i.price,i.quantity,i.unit,(i.price*i.quantity).toFixed(2)]));
+                if(sal) sal.items.forEach(i => data.push([d,'Продажа',i.name,i.price,i.quantity,i.unit,(i.price*i.quantity).toFixed(2)]));
+            });
+            name = 'Генеральный';
+        }
+        if(data.length<=1) { alert('Нет данных'); return; }
+        let ws = XLSX.utils.aoa_to_sheet(data);
+        let wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, name);
+        XLSX.writeFile(wb, `FinFlow_${name}.xlsx`);
+        alert('Готово!');
+    }
+    
+    function clearAll() {
+        if(confirm('Очистить всё?')) { purchasesHistory=[]; salesHistory=[]; saveData(); document.getElementById('reportArea').innerHTML = '<p>Очищено</p>'; }
+    }
+    
+    function escapeHtml(s) { return String(s || '').replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
+    
+    // Модалки
+    function openPurchaseModal() { document.getElementById('purchaseModal').style.display='flex'; document.getElementById('purchaseDate').value=new Date().toISOString().slice(0,10); tempPurchases=[]; nextPurId=1; renderPurchaseTable(); }
+    function closePurchaseModal() { document.getElementById('purchaseModal').style.display='none'; }
+    function openSalesModal() { document.getElementById('salesModal').style.display='flex'; document.getElementById('salesDate').value=new Date().toISOString().slice(0,10); tempSales=[]; nextSalId=1; renderSalesTable(); }
+    function closeSalesModal() { document.getElementById('salesModal').style.display='none'; }
+    
+    // Инициализация
+    loadData();
+    document.getElementById('openPurchaseBtn').onclick = openPurchaseModal;
+    document.getElementById('openSalesBtn').onclick = openSalesModal;
+    document.getElementById('closePurchaseBtn').onclick = closePurchaseModal;
+    document.getElementById('closeSalesBtn').onclick = closeSalesModal;
+    document.getElementById('addPurchaseRowBtn').onclick = addPurchaseRow;
+    document.getElementById('addSaleRowBtn').onclick = addSaleRow;
+    document.getElementById('savePurchaseBtn').onclick = savePurchases;
+    document.getElementById('saveSaleBtn').onclick = saveSales;
+    document.getElementById('excelBtn').onclick = exportExcel;
+    document.getElementById('reportBtn').onclick = showReport;
+    document.getElementById('historyBtn').onclick = showReport;
+    document.getElementById('clearBtn').onclick = clearAll;
+    window.onclick = (e) => { if(e.target.classList.contains('modal')) closePurchaseModal(), closeSalesModal(); };
+</script>
+</body>
+</html>
